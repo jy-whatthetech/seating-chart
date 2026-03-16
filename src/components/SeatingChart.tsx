@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+// import MenuItem from '@mui/material/MenuItem';
+// import Select from '@mui/material/Select';
 import Typography from '@mui/material/Typography';
 import UploadFile from '@mui/icons-material/UploadFile';
 import SaveOutlined from '@mui/icons-material/SaveOutlined';
@@ -11,6 +13,8 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import ErrorOutline from '@mui/icons-material/ErrorOutline';
+import Tooltip from '@mui/material/Tooltip';
+import InfoOutlined from '@mui/icons-material/InfoOutlined';
 import TableCard from './TableCard';
 import UnassignedPanel from './UnassignedPanel';
 import { parseSeatingFile, type SeatingRow } from '../utils/parseSeatingFile';
@@ -52,12 +56,64 @@ export default function SeatingChart() {
   const [unassigned, setUnassigned] = useState<string[]>([]);
   const [fileName, setFileName] = useState<string>('');
   const [seatingRows, setSeatingRows] = useState<SeatingRow[]>([]);
+  // const [priority, setPriority] = useState<string>('location');
   const [isRandomizing, setIsRandomizing] = useState(false);
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [draggedValidTables, setDraggedValidTables] = useState<number[] | null>(null);
 
   const roomGridRef = useRef<HTMLDivElement>(null);
   const loadInputRef = useRef<HTMLInputElement>(null);
   const [roomGridHeight, setRoomGridHeight] = useState<number | undefined>();
+
+  // Build name→SeatingRow lookup for violation checking
+  const rowByName = useMemo(() => {
+    const map = new Map<string, SeatingRow>();
+    if (seatingRows.length === 0) return map;
+    const nk = Object.keys(seatingRows[0]).find(k => k.toLowerCase().includes('name'));
+    if (!nk) return map;
+    for (const row of seatingRows) {
+      const n = String(row[nk] ?? '');
+      if (n) map.set(n, row);
+    }
+    return map;
+  }, [seatingRows]);
+
+  // Aggregate all constraint violations for the validation panel
+  const validationErrors = useMemo(() => {
+    const errors: { name: string; tableNumber: number; validTables?: number[]; conflictNames: string[] }[] = [];
+    for (let t = 0; t < NUM_TABLES; t++) {
+      const tblNum = t + 1;
+      for (const name of students[t]) {
+        if (!name) continue;
+        const sr = rowByName.get(name);
+        if (!sr) continue;
+
+        const loc = sr.requirements?.location;
+        const hasLocationViolation = loc && loc.length > 0 && loc.length < NUM_TABLES && !loc.includes(tblNum);
+
+        const notPeople = sr.requirements?.notPeople;
+        const conflictNames: string[] = [];
+        if (notPeople && notPeople.length > 0) {
+          const notLower = notPeople.map(p => p.toLowerCase());
+          for (const other of students[t]) {
+            if (other && other !== name && notLower.includes(other.toLowerCase())) {
+              conflictNames.push(other);
+            }
+          }
+        }
+
+        if (hasLocationViolation || conflictNames.length > 0) {
+          errors.push({
+            name,
+            tableNumber: tblNum,
+            validTables: hasLocationViolation ? loc : undefined,
+            conflictNames,
+          });
+        }
+      }
+    }
+    return errors;
+  }, [students, rowByName]);
 
   useEffect(() => {
     const el = roomGridRef.current;
@@ -72,6 +128,27 @@ export default function SeatingChart() {
   const getName = (addr: SeatAddress): string => {
     if (addr.type === 'table') return students[addr.tableIndex][addr.seatIndex] ?? '';
     return unassigned[addr.index] ?? '';
+  };
+
+  const handleSeatDragStart = (source: SeatAddress) => {
+    let name = '';
+    if (source.type === 'table') {
+      name = students[source.tableIndex][source.seatIndex];
+    } else {
+      name = unassigned[source.index] ?? '';
+    }
+    if (!name) return;
+    const sr = rowByName.get(name);
+    const loc = sr?.requirements?.location;
+    if (loc && loc.length > 0 && loc.length < NUM_TABLES) {
+      setDraggedValidTables(loc);
+    } else {
+      setDraggedValidTables(null);
+    }
+  };
+
+  const handleSeatDragEnd = () => {
+    setDraggedValidTables(null);
   };
 
   const handleDrop = (source: SeatAddress, target: SeatAddress) => {
@@ -352,12 +429,55 @@ export default function SeatingChart() {
           px: 3,
           py: 1.5,
         }}>
-          <Typography
-            variant="body2"
-            sx={{ fontWeight: 600, color: 'rgba(0, 0, 0, 0.8)', whiteSpace: 'nowrap', fontSize: '14px', letterSpacing: 0.5 }}
-          >
-            Excel File (Seating Requirements):
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: 600, color: 'rgba(0, 0, 0, 0.8)', whiteSpace: 'nowrap', fontSize: '14px', letterSpacing: 0.5 }}
+            >
+              Excel File (Seating Requirements)
+            </Typography>
+            <Tooltip
+              title={
+                <Box sx={{ fontSize: '13px', lineHeight: 1.6 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: 'rgba(0,0,0,0.8)' }}>Required Columns:</Typography>
+                  <Box component="ul" sx={{ m: 0, pl: 2, color: 'rgba(0,0,0,0.75)' }}>
+                    <li><strong>Name</strong></li>
+                    <li><strong>Cannot Sit With</strong> — comma-separated list of names matching the Name column</li>
+                    <li>
+                      <strong>Location Needs</strong> — one keyword per line:
+                      <Box component="ul" sx={{ mt: 0.5, pl: 2 }}>
+                        <li>Front, Middle, Back, Windows, Door</li>
+                        <li>Not 1 or 2, Not middle, etc.</li>
+                      </Box>
+                    </li>
+                  </Box>
+                </Box>
+              }
+              arrow
+              placement="bottom-start"
+              slotProps={{
+                tooltip: {
+                  sx: {
+                    background: 'rgba(255, 255, 255, 0.55)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255, 255, 255, 0.6)',
+                    borderRadius: '14px',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7)',
+                    color: 'rgba(0, 0, 0, 0.8)',
+                    maxWidth: 300,
+                    p: 1.5,
+                  },
+                },
+                arrow: {
+                  sx: { color: 'rgba(255, 255, 255, 0.55)' },
+                },
+              }}
+            >
+              <InfoOutlined sx={{ fontSize: 16, color: 'rgba(0,0,0,0.4)', cursor: 'default', '&:hover': { color: 'rgba(0,0,0,0.7)' } }} />
+            </Tooltip>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: 'rgba(0, 0, 0, 0.8)', fontSize: '14px', letterSpacing: 0.5 }}>:</Typography>
+          </Box>
           <Button
             component="label"
             variant="outlined"
@@ -582,16 +702,52 @@ export default function SeatingChart() {
                             : `${i * 2 + 1} / ${i * 2 + 3}`,
                         }}
                       >
-                        <TableCard
-                          tableNumber={row.reversed
+                        {(() => {
+                          const tblNum = row.reversed
                             ? row.startIndex + row.indices.length - i
-                            : row.startIndex + i + 1}
-                          tableIndex={tableIdx}
-                          students={students[tableIdx]}
-                          groupSize={groupSizes[tableIdx]}
-                          onGroupSizeChange={(size) => handleGroupSizeChange(tableIdx, size)}
-                          onSeatDrop={handleDrop}
-                        />
+                            : row.startIndex + i + 1;
+                          const tblStudents = students[tableIdx];
+                          const violations = tblStudents.map(n => {
+                            if (!n) return false;
+                            const sr = rowByName.get(n);
+                            const loc = sr?.requirements?.location;
+                            if (!loc || loc.length === 0 || loc.length >= NUM_TABLES) return false;
+                            return !loc.includes(tblNum);
+                          });
+                          const conflicts = tblStudents.map((n, si) => {
+                            if (!n) return false;
+                            const sr = rowByName.get(n);
+                            const notPeople = sr?.requirements?.notPeople;
+                            if (!notPeople || notPeople.length === 0) return false;
+                            const notLower = notPeople.map(p => p.toLowerCase());
+                            return tblStudents.some((other, oi) =>
+                              oi !== si && other && notLower.includes(other.toLowerCase())
+                            );
+                          });
+                          const prefMatches = tblStudents.map(n => {
+                            if (!n) return false;
+                            const sr = rowByName.get(n);
+                            const pref = sr?.preferences?.location;
+                            if (!pref || pref.length === 0) return false;
+                            return pref.includes(tblNum);
+                          });
+                          return (
+                            <TableCard
+                              tableNumber={tblNum}
+                              tableIndex={tableIdx}
+                              students={tblStudents}
+                              groupSize={groupSizes[tableIdx]}
+                              onGroupSizeChange={(size) => handleGroupSizeChange(tableIdx, size)}
+                              onSeatDrop={handleDrop}
+                              onSeatDragStart={handleSeatDragStart}
+                              onSeatDragEnd={handleSeatDragEnd}
+                              dragInvalidTable={draggedValidTables != null && !draggedValidTables.includes(tblNum)}
+                              seatViolations={violations}
+                              seatConflicts={conflicts}
+                              seatPreferenceMatch={prefMatches}
+                            />
+                          );
+                        })()}
                       </Box>
                     ))}
                   </Box>
@@ -624,8 +780,36 @@ export default function SeatingChart() {
         </Box>
 
         {/* Unassigned panel */}
-        <UnassignedPanel names={unassigned} onSeatDrop={handleDrop} maxHeight={roomGridHeight} />
+        <UnassignedPanel names={unassigned} onSeatDrop={handleDrop} onSeatDragStart={handleSeatDragStart} onSeatDragEnd={handleSeatDragEnd} maxHeight={roomGridHeight} />
         </Box>{/* end content row */}
+
+      {validationErrors.length > 0 && (
+        <Box sx={{
+          mt: 2,
+          mx: 'auto',
+          maxWidth: 900,
+          width: '100%',
+          background: 'rgba(20, 20, 30, 0.75)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '16px',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+          p: 2,
+        }}>
+          <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.6)', mb: 1, fontWeight: 700 }}>
+            Validation Issues
+          </Typography>
+          {validationErrors.map((err, i) => (
+            <Typography key={i} variant="body2" sx={{ color: 'rgba(240, 80, 80, 0.95)', fontSize: '13px', lineHeight: 1.8 }}>
+              {err.name} (Table {err.tableNumber}):
+              {err.validTables && ` must sit at table${err.validTables.length > 1 ? 's' : ''} ${err.validTables.join(', ')}.`}
+              {err.validTables && err.conflictNames.length > 0 && ' '}
+              {err.conflictNames.length > 0 && ` cannot sit with ${err.conflictNames.join(', ')}.`}
+            </Typography>
+          ))}
+        </Box>
+      )}
 
       </Box>{/* end column */}
       </Box>{/* end centering wrapper */}

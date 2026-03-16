@@ -18,6 +18,7 @@ const baseSeatCellSx = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+  position: 'relative' as const,
   border: '1px solid rgba(0, 0, 0, 0.1)',
   borderRadius: '8px',
   minHeight: 40,
@@ -33,6 +34,12 @@ interface TableCardProps {
   groupSize: number;
   onGroupSizeChange: (size: number) => void;
   onSeatDrop: (source: SeatAddress, target: SeatAddress) => void;
+  onSeatDragStart?: (source: SeatAddress) => void;
+  onSeatDragEnd?: () => void;
+  dragInvalidTable?: boolean;
+  seatViolations?: boolean[];
+  seatConflicts?: boolean[];
+  seatPreferenceMatch?: boolean[];
 }
 
 interface SeatCellProps {
@@ -41,10 +48,16 @@ interface SeatCellProps {
   seatIndex: number;
   onSeatDrop: (source: SeatAddress, target: SeatAddress) => void;
   inactive?: boolean;
+  violated?: boolean;
+  conflicted?: boolean;
+  preferenceMatch?: boolean;
+  onSeatDragStart?: (source: SeatAddress) => void;
+  onSeatDragEnd?: () => void;
+  dragInvalidTable?: boolean;
   sx?: Record<string, unknown>;
 }
 
-function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, sx }: SeatCellProps) {
+function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, violated, conflicted, preferenceMatch: _preferenceMatch, onSeatDragStart, onSeatDragEnd, dragInvalidTable, sx }: SeatCellProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -57,10 +70,12 @@ function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, sx }: Sea
     e.dataTransfer.setData('application/json', JSON.stringify(address));
     e.dataTransfer.effectAllowed = 'move';
     setIsDragging(true);
+    onSeatDragStart?.(address);
   };
 
   const handleDragEnd = () => {
     setIsDragging(false);
+    onSeatDragEnd?.();
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -109,15 +124,26 @@ function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, sx }: Sea
           cursor: 'grabbing',
         }),
         ...(isDragOver && {
-          background: 'rgba(173, 216, 230, 0.4)',
-          border: '2px solid rgba(30, 90, 180, 0.7)',
+          background: dragInvalidTable ? 'rgba(240, 128, 128, 0.4)' : 'rgba(173, 216, 230, 0.4)',
+          border: dragInvalidTable ? '2px solid rgba(180, 40, 40, 0.7)' : '2px solid rgba(30, 90, 180, 0.7)',
+        }),
+        ...((violated) && !inactive && !isDragging && !isDragOver && { //...((violated || preferenceMatch) && !inactive && !isDragging && !isDragOver && { // turn off the green highlighting for preference matches for now
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: '10px',
+            height: '100%',
+            background: violated ? 'rgba(210, 50, 50, 0.75)' : 'rgba(34, 197, 94, 0.5)',
+          },
         }),
       }}
     >
       <Typography
         variant="body2"
         noWrap
-        sx={{ fontSize: '13px', color: inactive ? 'rgba(0, 0, 0, 0.25)' : 'rgba(0, 0, 0, 0.7)', textAlign: 'center', userSelect: 'none', pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}
+        sx={{ fontSize: '13px', color: inactive ? 'rgba(0, 0, 0, 0.25)' : conflicted ? 'rgba(210, 50, 50, 0.9)' : 'rgba(0, 0, 0, 0.7)', fontWeight: conflicted ? 700 : undefined, textAlign: 'center', userSelect: 'none', pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}
       >
         {name}
       </Typography>
@@ -132,6 +158,12 @@ export default function TableCard({
   groupSize,
   onGroupSizeChange,
   onSeatDrop,
+  onSeatDragStart,
+  onSeatDragEnd,
+  dragInvalidTable,
+  seatViolations,
+  seatConflicts,
+  seatPreferenceMatch,
 }: TableCardProps) {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
@@ -220,6 +252,12 @@ export default function TableCard({
               tableIndex={tableIndex}
               seatIndex={extraSeat.seatIndex}
               onSeatDrop={onSeatDrop}
+              violated={seatViolations?.[extraSeat.seatIndex] ?? false}
+              conflicted={seatConflicts?.[extraSeat.seatIndex] ?? false}
+              preferenceMatch={seatPreferenceMatch?.[extraSeat.seatIndex] ?? false}
+              onSeatDragStart={onSeatDragStart}
+              onSeatDragEnd={onSeatDragEnd}
+              dragInvalidTable={dragInvalidTable}
               sx={{ width: '50%' }}
             />
           </Box>
@@ -235,6 +273,12 @@ export default function TableCard({
               seatIndex={seat.seatIndex}
               onSeatDrop={onSeatDrop}
               inactive={seat.inactive}
+              violated={seatViolations?.[seat.seatIndex] ?? false}
+              conflicted={seatConflicts?.[seat.seatIndex] ?? false}
+              preferenceMatch={seatPreferenceMatch?.[seat.seatIndex] ?? false}
+              onSeatDragStart={onSeatDragStart}
+              onSeatDragEnd={onSeatDragEnd}
+              dragInvalidTable={dragInvalidTable}
             />
           ))}
         </Box>

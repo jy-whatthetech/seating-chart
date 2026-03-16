@@ -21,6 +21,8 @@ const slotSx = {
 interface UnassignedPanelProps {
   names: string[];
   onSeatDrop: (source: SeatAddress, target: SeatAddress) => void;
+  onSeatDragStart?: (source: SeatAddress) => void;
+  onSeatDragEnd?: () => void;
   maxHeight?: number;
 }
 
@@ -28,10 +30,12 @@ interface SlotProps {
   name: string;
   index: number;
   onSeatDrop: (source: SeatAddress, target: SeatAddress) => void;
+  onSeatDragStart?: (source: SeatAddress) => void;
+  onSeatDragEnd?: () => void;
   isAppendZone?: boolean;
 }
 
-function Slot({ name, index, onSeatDrop, isAppendZone }: SlotProps) {
+function Slot({ name, index, onSeatDrop, onSeatDragStart, onSeatDragEnd, isAppendZone }: SlotProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -44,10 +48,12 @@ function Slot({ name, index, onSeatDrop, isAppendZone }: SlotProps) {
     e.dataTransfer.setData('application/json', JSON.stringify(address));
     e.dataTransfer.effectAllowed = 'move';
     setIsDragging(true);
+    onSeatDragStart?.(address);
   };
 
   const handleDragEnd = () => {
     setIsDragging(false);
+    onSeatDragEnd?.();
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -119,7 +125,7 @@ function Slot({ name, index, onSeatDrop, isAppendZone }: SlotProps) {
   );
 }
 
-export default function UnassignedPanel({ names, onSeatDrop, maxHeight }: UnassignedPanelProps) {
+export default function UnassignedPanel({ names, onSeatDrop, onSeatDragStart, onSeatDragEnd, maxHeight }: UnassignedPanelProps) {
   return (
     <Box
       sx={{
@@ -148,7 +154,7 @@ export default function UnassignedPanel({ names, onSeatDrop, maxHeight }: Unassi
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, overflowY: 'auto' }}>
         {names.map((name, i) => (
-          <Slot key={i} name={name} index={i} onSeatDrop={onSeatDrop} />
+          <Slot key={i} name={name} index={i} onSeatDrop={onSeatDrop} onSeatDragStart={onSeatDragStart} onSeatDragEnd={onSeatDragEnd} />
         ))}
 
         {/* Always show an append drop zone */}
@@ -156,6 +162,8 @@ export default function UnassignedPanel({ names, onSeatDrop, maxHeight }: Unassi
           name=""
           index={names.length}
           onSeatDrop={onSeatDrop}
+          onSeatDragStart={onSeatDragStart}
+          onSeatDragEnd={onSeatDragEnd}
           isAppendZone
         />
       </Box>

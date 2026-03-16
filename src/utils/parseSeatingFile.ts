@@ -4,6 +4,7 @@ import { parseLocationPreferences, parseNameList } from './parsingUtils';
 export type SeatingRow = {
   id: number;
   requirements: { location: number[]; notPeople: string[] };
+  preferences: { location: number[] };
 } & Record<string, unknown>;
 
 export async function parseSeatingFile(file: File): Promise<SeatingRow[]> {
@@ -56,6 +57,12 @@ export async function parseSeatingFile(file: File): Promise<SeatingRow[]> {
           const val = cannotSitWithIdx >= 0 ? String(row[cannotSitWithIdx] ?? '').trim() : '';
           return val && val !== '0' ? parseNameList(val) : [];
         })(),
+      },
+      preferences: {
+        location: parseLocationPreferences(
+          locationPrefIdx >= 0 ? String(row[locationPrefIdx] ?? '') : '',
+          false
+        ),
       },
     };
     for (const { key, idx } of colMap) {
