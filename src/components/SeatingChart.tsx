@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
 import Typography from '@mui/material/Typography';
 import UploadFile from '@mui/icons-material/UploadFile';
 import SaveOutlined from '@mui/icons-material/SaveOutlined';
@@ -54,7 +52,6 @@ export default function SeatingChart() {
   const [unassigned, setUnassigned] = useState<string[]>([]);
   const [fileName, setFileName] = useState<string>('');
   const [seatingRows, setSeatingRows] = useState<SeatingRow[]>([]);
-  const [priority, setPriority] = useState<string>('location');
   const [isRandomizing, setIsRandomizing] = useState(false);
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
 
@@ -663,7 +660,7 @@ export default function SeatingChart() {
         </DialogTitle>
         <DialogContent>
           <Typography>
-            No valid seat configuration found 😞
+            No valid seat configuration found 😭
           </Typography>
         </DialogContent>
         <DialogActions>
