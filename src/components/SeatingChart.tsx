@@ -60,6 +60,7 @@ export default function SeatingChart() {
   const [isRandomizing, setIsRandomizing] = useState(false);
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [draggedValidTables, setDraggedValidTables] = useState<number[] | null>(null);
+  const [draggedConflictNames, setDraggedConflictNames] = useState<Set<string> | null>(null);
 
   const roomGridRef = useRef<HTMLDivElement>(null);
   const loadInputRef = useRef<HTMLInputElement>(null);
@@ -145,10 +146,17 @@ export default function SeatingChart() {
     } else {
       setDraggedValidTables(null);
     }
+    const notPeople = sr?.requirements?.notPeople;
+    if (notPeople && notPeople.length > 0) {
+      setDraggedConflictNames(new Set(notPeople.map(n => n.toLowerCase())));
+    } else {
+      setDraggedConflictNames(null);
+    }
   };
 
   const handleSeatDragEnd = () => {
     setDraggedValidTables(null);
+    setDraggedConflictNames(null);
   };
 
   const handleDrop = (source: SeatAddress, target: SeatAddress) => {
@@ -742,6 +750,8 @@ export default function SeatingChart() {
                               onSeatDragStart={handleSeatDragStart}
                               onSeatDragEnd={handleSeatDragEnd}
                               dragInvalidTable={draggedValidTables != null && !draggedValidTables.includes(tblNum)}
+                              isDraggingWithConstraint={draggedValidTables != null}
+                              draggedConflictNames={draggedConflictNames}
                               seatViolations={violations}
                               seatConflicts={conflicts}
                               seatPreferenceMatch={prefMatches}
@@ -780,7 +790,7 @@ export default function SeatingChart() {
         </Box>
 
         {/* Unassigned panel */}
-        <UnassignedPanel names={unassigned} onSeatDrop={handleDrop} onSeatDragStart={handleSeatDragStart} onSeatDragEnd={handleSeatDragEnd} maxHeight={roomGridHeight} />
+        <UnassignedPanel names={unassigned} onSeatDrop={handleDrop} onSeatDragStart={handleSeatDragStart} onSeatDragEnd={handleSeatDragEnd} draggedConflictNames={draggedConflictNames} maxHeight={roomGridHeight} />
         </Box>{/* end content row */}
 
       {validationErrors.length > 0 && (

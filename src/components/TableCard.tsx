@@ -37,6 +37,8 @@ interface TableCardProps {
   onSeatDragStart?: (source: SeatAddress) => void;
   onSeatDragEnd?: () => void;
   dragInvalidTable?: boolean;
+  isDraggingWithConstraint?: boolean;
+  draggedConflictNames?: Set<string> | null;
   seatViolations?: boolean[];
   seatConflicts?: boolean[];
   seatPreferenceMatch?: boolean[];
@@ -54,10 +56,11 @@ interface SeatCellProps {
   onSeatDragStart?: (source: SeatAddress) => void;
   onSeatDragEnd?: () => void;
   dragInvalidTable?: boolean;
+  isConflictedDrag?: boolean;
   sx?: Record<string, unknown>;
 }
 
-function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, violated, conflicted, preferenceMatch: _preferenceMatch, onSeatDragStart, onSeatDragEnd, dragInvalidTable, sx }: SeatCellProps) {
+function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, violated, conflicted, preferenceMatch: _preferenceMatch, onSeatDragStart, onSeatDragEnd, dragInvalidTable, isConflictedDrag, sx }: SeatCellProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -123,6 +126,9 @@ function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, violated,
           border: '1px dashed rgba(60, 160, 60, 0.5)',
           cursor: 'grabbing',
         }),
+        ...(isConflictedDrag && !isDragging && {
+          background: 'rgba(180, 120, 220, 0.25)',
+        }),
         ...(isDragOver && {
           background: dragInvalidTable ? 'rgba(240, 128, 128, 0.4)' : 'rgba(173, 216, 230, 0.4)',
           border: dragInvalidTable ? '2px solid rgba(180, 40, 40, 0.7)' : '2px solid rgba(30, 90, 180, 0.7)',
@@ -161,6 +167,8 @@ export default function TableCard({
   onSeatDragStart,
   onSeatDragEnd,
   dragInvalidTable,
+  isDraggingWithConstraint,
+  draggedConflictNames,
   seatViolations,
   seatConflicts,
   seatPreferenceMatch,
@@ -189,7 +197,7 @@ export default function TableCard({
   }));
 
   return (
-    <Box sx={{ ...glassCard as Record<string, unknown>, p: 1.5, display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ ...glassCard as Record<string, unknown>, p: 1.5, display: 'flex', flexDirection: 'column', transition: 'background 0.15s ease', ...(isDraggingWithConstraint && dragInvalidTable && { background: 'rgba(220, 80, 80, 0.12)' }) }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
         <Typography
           variant="subtitle1"
@@ -258,6 +266,7 @@ export default function TableCard({
               onSeatDragStart={onSeatDragStart}
               onSeatDragEnd={onSeatDragEnd}
               dragInvalidTable={dragInvalidTable}
+              isConflictedDrag={draggedConflictNames != null && extraSeat.name !== '' && draggedConflictNames.has(extraSeat.name.toLowerCase())}
               sx={{ width: '50%' }}
             />
           </Box>
@@ -279,6 +288,7 @@ export default function TableCard({
               onSeatDragStart={onSeatDragStart}
               onSeatDragEnd={onSeatDragEnd}
               dragInvalidTable={dragInvalidTable}
+              isConflictedDrag={draggedConflictNames != null && seat.name !== '' && draggedConflictNames.has(seat.name.toLowerCase())}
             />
           ))}
         </Box>
