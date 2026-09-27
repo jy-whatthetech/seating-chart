@@ -26,8 +26,8 @@ Columns can be in any order, and header matching ignores capitalization.
 | Name | first header that *contains* `name` | Student name. `Last, First` is converted to `First Last`. |
 | Cannot Sit With | exact match | **Hard rule.** Names separated by commas or line breaks. `0` or blank means none. |
 | Location Needs | exact match | **Hard rule.** The tables the student is allowed to sit at (see below). |
-| Location Preference | exact match | Soft preference. It's shown under the student's name as `L: 1, 2, 3`, in green when they're at one of those tables and red when they aren't. The preferred tables are also tinted light green while you drag the student. Randomize doesn't enforce it. |
-| Person Preference | exact match | Soft preference. Names the student would like to sit with, in the same format as Cannot Sit With. It's shown under the student's name as `P: 1/3` (preferred people at the same table / people listed), in green when at least one is there and red when none are. Their names are also highlighted darker green while you drag the student, but Randomize doesn't enforce them. |
+| Location Preference | exact match | Soft preference. When the student isn't at one of those tables, `L: 1, 2, 3` is shown in red below their name; it's hidden once the preference is met. The preferred tables are also tinted light green while you drag the student. Randomize doesn't enforce it. |
+| Person Preference | exact match | Soft preference. Names the student would like to sit with, in the same format as Cannot Sit With. Once the student's hard rules are met (Location Needs and Cannot Sit With), the top-right corner of their seat shows `1/3`: preferred people at the same table out of people listed, in green when at least one is there and red when none are. Their names are also highlighted darker green while you drag the student, but Randomize doesn't enforce them. |
 | Social… | header *contains* `social` | Stored, but not used by the seating logic yet. |
 
 ### Location values

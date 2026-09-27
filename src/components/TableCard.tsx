@@ -165,22 +165,21 @@ function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, violated,
       >
         {name}
       </Typography>
-      {locationPref && hasName && !inactive && (
+      {locationPref && !preferenceMatch && hasName && !inactive && (
         <Typography
           variant="caption"
           noWrap
-          sx={{ fontSize: '10px', lineHeight: 1.2, fontWeight: 600, color: preferenceMatch ? 'rgba(22, 130, 60, 0.95)' : 'rgba(210, 50, 50, 0.9)', textAlign: 'center', userSelect: 'none', pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}
+          sx={{ fontSize: '10px', lineHeight: 1.2, fontWeight: 600, color: 'rgba(210, 50, 50, 0.9)', textAlign: 'center', userSelect: 'none', pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}
         >
           L: {locationPref.join(', ')}
         </Typography>
       )}
-      {personPref && hasName && !inactive && (
+      {personPref && !violated && !conflicted && hasName && !inactive && (
         <Typography
           variant="caption"
-          noWrap
-          sx={{ fontSize: '10px', lineHeight: 1.2, fontWeight: 600, color: personPref.met > 0 ? 'rgba(22, 130, 60, 0.95)' : 'rgba(210, 50, 50, 0.9)', textAlign: 'center', userSelect: 'none', pointerEvents: 'none' }}
+          sx={{ position: 'absolute', top: 2, right: 5, fontSize: '10px', lineHeight: 1, fontWeight: 600, color: personPref.met > 0 ? 'rgba(22, 130, 60, 0.95)' : 'rgba(210, 50, 50, 0.9)', userSelect: 'none', pointerEvents: 'none' }}
         >
-          P: {personPref.met}/{personPref.total}
+          {personPref.met}/{personPref.total}
         </Typography>
       )}
     </Box>
