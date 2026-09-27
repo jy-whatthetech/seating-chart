@@ -76,6 +76,7 @@ Each table/team card contains:
   - Drop target hover: light blue background, dark blue border
   - While dragging, names in the dragged student's `notPeople` get a purple background and names in their `preferences.people` a darker green one with a green border (purple wins if both); applies to seats and the Unassigned panel
   - While dragging, tables outside the student's `requirements.location` get a red card tint, and tables in their `preferences.location` a light green one (red wins if both)
+  - **Drop preview**: `SeatingChart` tracks the drag source and hovered seat (`onSeatDragEnter`/`onSeatDragLeave`), simulates the drop with `applyDrop()` (the same function `handleDrop` uses), and lists rules the drop would newly break (`getNewValidationErrors()`; rules already broken aren't repeated) in amber under "Dropping here would break" at the top of the validation panel; the hovered seat also turns red (`dropWarning`)
   - Child text has `pointerEvents: 'none'` to prevent dragLeave flicker
 
 ### Group Size Stepper Seat Shifting

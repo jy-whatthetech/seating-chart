@@ -23,6 +23,9 @@ interface UnassignedPanelProps {
   onSeatDrop: (source: SeatAddress, target: SeatAddress) => void;
   onSeatDragStart?: (source: SeatAddress) => void;
   onSeatDragEnd?: () => void;
+  onSeatDragEnter?: (target: SeatAddress) => void;
+  onSeatDragLeave?: (target: SeatAddress) => void;
+  dropWarning?: boolean;
   draggedConflictNames?: Set<string> | null;
   draggedPreferredNames?: Set<string> | null;
   maxHeight?: number;
@@ -34,12 +37,15 @@ interface SlotProps {
   onSeatDrop: (source: SeatAddress, target: SeatAddress) => void;
   onSeatDragStart?: (source: SeatAddress) => void;
   onSeatDragEnd?: () => void;
+  onSeatDragEnter?: (target: SeatAddress) => void;
+  onSeatDragLeave?: (target: SeatAddress) => void;
+  dropWarning?: boolean;
   draggedConflictNames?: Set<string> | null;
   draggedPreferredNames?: Set<string> | null;
   isAppendZone?: boolean;
 }
 
-function Slot({ name, index, onSeatDrop, onSeatDragStart, onSeatDragEnd, draggedConflictNames, draggedPreferredNames, isAppendZone }: SlotProps) {
+function Slot({ name, index, onSeatDrop, onSeatDragStart, onSeatDragEnd, onSeatDragEnter, onSeatDragLeave, dropWarning, draggedConflictNames, draggedPreferredNames, isAppendZone }: SlotProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -68,10 +74,12 @@ function Slot({ name, index, onSeatDrop, onSeatDragStart, onSeatDragEnd, dragged
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(true);
+    onSeatDragEnter?.(address);
   };
 
   const handleDragLeave = () => {
     setIsDragOver(false);
+    onSeatDragLeave?.(address);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -112,8 +120,8 @@ function Slot({ name, index, onSeatDrop, onSeatDragStart, onSeatDragEnd, dragged
           cursor: 'grabbing',
         }),
         ...(isDragOver && {
-          background: 'rgba(173, 216, 230, 0.4)',
-          border: '2px solid rgba(30, 90, 180, 0.7)',
+          background: dropWarning ? 'rgba(240, 128, 128, 0.4)' : 'rgba(173, 216, 230, 0.4)',
+          border: dropWarning ? '2px solid rgba(180, 40, 40, 0.7)' : '2px solid rgba(30, 90, 180, 0.7)',
         }),
       }}
     >
@@ -136,7 +144,7 @@ function Slot({ name, index, onSeatDrop, onSeatDragStart, onSeatDragEnd, dragged
   );
 }
 
-export default function UnassignedPanel({ names, onSeatDrop, onSeatDragStart, onSeatDragEnd, draggedConflictNames, draggedPreferredNames, maxHeight }: UnassignedPanelProps) {
+export default function UnassignedPanel({ names, onSeatDrop, onSeatDragStart, onSeatDragEnd, onSeatDragEnter, onSeatDragLeave, dropWarning, draggedConflictNames, draggedPreferredNames, maxHeight }: UnassignedPanelProps) {
   return (
     <Box
       sx={{
@@ -165,7 +173,7 @@ export default function UnassignedPanel({ names, onSeatDrop, onSeatDragStart, on
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, overflowY: 'auto' }}>
         {names.map((name, i) => (
-          <Slot key={i} name={name} index={i} onSeatDrop={onSeatDrop} onSeatDragStart={onSeatDragStart} onSeatDragEnd={onSeatDragEnd} draggedConflictNames={draggedConflictNames} draggedPreferredNames={draggedPreferredNames} />
+          <Slot key={i} name={name} index={i} onSeatDrop={onSeatDrop} onSeatDragStart={onSeatDragStart} onSeatDragEnd={onSeatDragEnd} onSeatDragEnter={onSeatDragEnter} onSeatDragLeave={onSeatDragLeave} dropWarning={dropWarning} draggedConflictNames={draggedConflictNames} draggedPreferredNames={draggedPreferredNames} />
         ))}
 
         {/* Always show an append drop zone */}
@@ -175,6 +183,9 @@ export default function UnassignedPanel({ names, onSeatDrop, onSeatDragStart, on
           onSeatDrop={onSeatDrop}
           onSeatDragStart={onSeatDragStart}
           onSeatDragEnd={onSeatDragEnd}
+          onSeatDragEnter={onSeatDragEnter}
+          onSeatDragLeave={onSeatDragLeave}
+          dropWarning={dropWarning}
           draggedConflictNames={draggedConflictNames}
           draggedPreferredNames={draggedPreferredNames}
           isAppendZone

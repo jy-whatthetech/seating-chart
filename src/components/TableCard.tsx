@@ -37,6 +37,9 @@ interface TableCardProps {
   onSeatDrop: (source: SeatAddress, target: SeatAddress) => void;
   onSeatDragStart?: (source: SeatAddress) => void;
   onSeatDragEnd?: () => void;
+  onSeatDragEnter?: (target: SeatAddress) => void;
+  onSeatDragLeave?: (target: SeatAddress) => void;
+  dropWarning?: boolean;
   dragInvalidTable?: boolean;
   isDraggingWithConstraint?: boolean;
   dragPreferredTable?: boolean;
@@ -62,19 +65,23 @@ interface SeatCellProps {
   personPref?: { met: number; total: number } | null;
   onSeatDragStart?: (source: SeatAddress) => void;
   onSeatDragEnd?: () => void;
+  onSeatDragEnter?: (target: SeatAddress) => void;
+  onSeatDragLeave?: (target: SeatAddress) => void;
+  dropWarning?: boolean;
   dragInvalidTable?: boolean;
   isConflictedDrag?: boolean;
   isPreferredDrag?: boolean;
   sx?: Record<string, unknown>;
 }
 
-function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, violated, conflicted, preferenceMatch, locationPref, personPref, onSeatDragStart, onSeatDragEnd, dragInvalidTable, isConflictedDrag, isPreferredDrag, sx }: SeatCellProps) {
+function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, violated, conflicted, preferenceMatch, locationPref, personPref, onSeatDragStart, onSeatDragEnd, onSeatDragEnter, onSeatDragLeave, dropWarning, dragInvalidTable, isConflictedDrag, isPreferredDrag, sx }: SeatCellProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   const address: SeatAddress = { type: 'table', tableIndex, seatIndex };
   const hasName = name !== '';
   const isDraggable = hasName;
+  const isBadDrop = dragInvalidTable || dropWarning;
 
   const handleDragStart = (e: React.DragEvent) => {
     if (!isDraggable) return;
@@ -97,10 +104,12 @@ function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, violated,
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(true);
+    onSeatDragEnter?.(address);
   };
 
   const handleDragLeave = () => {
     setIsDragOver(false);
+    onSeatDragLeave?.(address);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -142,8 +151,8 @@ function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, violated,
           background: 'rgba(180, 120, 220, 0.25)',
         }),
         ...(isDragOver && {
-          background: dragInvalidTable ? 'rgba(240, 128, 128, 0.4)' : 'rgba(173, 216, 230, 0.4)',
-          border: dragInvalidTable ? '2px solid rgba(180, 40, 40, 0.7)' : '2px solid rgba(30, 90, 180, 0.7)',
+          background: isBadDrop ? 'rgba(240, 128, 128, 0.4)' : 'rgba(173, 216, 230, 0.4)',
+          border: isBadDrop ? '2px solid rgba(180, 40, 40, 0.7)' : '2px solid rgba(30, 90, 180, 0.7)',
         }),
         ...((violated) && !inactive && !isDragging && !isDragOver && { //...((violated || preferenceMatch) && !inactive && !isDragging && !isDragOver && { // turn off the green highlighting for preference matches for now
           '&::after': {
@@ -195,6 +204,9 @@ export default function TableCard({
   onSeatDrop,
   onSeatDragStart,
   onSeatDragEnd,
+  onSeatDragEnter,
+  onSeatDragLeave,
+  dropWarning,
   dragInvalidTable,
   isDraggingWithConstraint,
   dragPreferredTable,
@@ -300,6 +312,9 @@ export default function TableCard({
               personPref={seatPersonPrefs?.[extraSeat.seatIndex]}
               onSeatDragStart={onSeatDragStart}
               onSeatDragEnd={onSeatDragEnd}
+              onSeatDragEnter={onSeatDragEnter}
+              onSeatDragLeave={onSeatDragLeave}
+              dropWarning={dropWarning}
               dragInvalidTable={dragInvalidTable}
               isConflictedDrag={draggedConflictNames != null && extraSeat.name !== '' && draggedConflictNames.has(extraSeat.name.toLowerCase())}
               isPreferredDrag={draggedPreferredNames != null && extraSeat.name !== '' && draggedPreferredNames.has(extraSeat.name.toLowerCase())}
@@ -325,6 +340,9 @@ export default function TableCard({
               personPref={seatPersonPrefs?.[seat.seatIndex]}
               onSeatDragStart={onSeatDragStart}
               onSeatDragEnd={onSeatDragEnd}
+              onSeatDragEnter={onSeatDragEnter}
+              onSeatDragLeave={onSeatDragLeave}
+              dropWarning={dropWarning}
               dragInvalidTable={dragInvalidTable}
               isConflictedDrag={draggedConflictNames != null && seat.name !== '' && draggedConflictNames.has(seat.name.toLowerCase())}
               isPreferredDrag={draggedPreferredNames != null && seat.name !== '' && draggedPreferredNames.has(seat.name.toLowerCase())}

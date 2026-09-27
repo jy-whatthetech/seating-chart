@@ -14,6 +14,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import ErrorOutline from '@mui/icons-material/ErrorOutline';
+import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
 import Tooltip from '@mui/material/Tooltip';
 import InfoOutlined from '@mui/icons-material/InfoOutlined';
 import TableCard from './TableCard';
@@ -37,6 +38,137 @@ function getLocationPreference(sr: SeatingRow | undefined): number[] | null {
   const allowed = needs && needs.length > 0 ? pref.filter(t => needs.includes(t)) : pref;
   if (allowed.length === 0 || allowed.length >= NUM_TABLES) return null;
   return [...allowed].sort((a, b) => a - b);
+}
+
+type ValidationError = { name: string; tableNumber: number; validTables?: number[]; conflictNames: string[] };
+
+// All location-needs and cannot-sit-with violations for a seating arrangement
+function getValidationErrors(students: string[][], rowByName: Map<string, SeatingRow>): ValidationError[] {
+  const errors: ValidationError[] = [];
+  for (let t = 0; t < NUM_TABLES; t++) {
+    const tblNum = t + 1;
+    for (const name of students[t]) {
+      if (!name) continue;
+      const sr = rowByName.get(name);
+      if (!sr) continue;
+
+      const loc = sr.requirements?.location;
+      const hasLocationViolation = loc && loc.length > 0 && loc.length < NUM_TABLES && !loc.includes(tblNum);
+
+      const notPeople = sr.requirements?.notPeople;
+      const conflictNames: string[] = [];
+      if (notPeople && notPeople.length > 0) {
+        const notLower = notPeople.map(p => p.toLowerCase());
+        for (const other of students[t]) {
+          if (other && other !== name && notLower.includes(other.toLowerCase())) {
+            conflictNames.push(other);
+          }
+        }
+      }
+
+      if (hasLocationViolation || conflictNames.length > 0) {
+        errors.push({
+          name,
+          tableNumber: tblNum,
+          validTables: hasLocationViolation ? loc : undefined,
+          conflictNames,
+        });
+      }
+    }
+  }
+  return errors;
+}
+
+// Errors in `next` whose rule (a student's location needs, or one cannot-sit-with pair)
+// isn't already broken in `prev`
+function getNewValidationErrors(prev: ValidationError[], next: ValidationError[]): ValidationError[] {
+  const broken = new Set<string>();
+  for (const e of prev) {
+    const n = e.name.toLowerCase();
+    if (e.validTables) broken.add(`loc|${n}`);
+    for (const c of e.conflictNames) broken.add(`not|${n}|${c.toLowerCase()}`);
+  }
+  const result: ValidationError[] = [];
+  for (const e of next) {
+    const n = e.name.toLowerCase();
+    const validTables = e.validTables && !broken.has(`loc|${n}`) ? e.validTables : undefined;
+    const conflictNames = e.conflictNames.filter(c => !broken.has(`not|${n}|${c.toLowerCase()}`));
+    if (validTables || conflictNames.length > 0) {
+      result.push({ ...e, validTables, conflictNames });
+    }
+  }
+  return result;
+}
+
+function ValidationErrorLine({ err, color }: { err: ValidationError; color: string }) {
+  return (
+    <Typography variant="body2" sx={{ color, fontSize: '13px', lineHeight: 1.8 }}>
+      {err.name} (Table {err.tableNumber}):
+      {err.validTables && ` must sit at table${err.validTables.length > 1 ? 's' : ''} ${err.validTables.join(', ')}.`}
+      {err.validTables && err.conflictNames.length > 0 && ' '}
+      {err.conflictNames.length > 0 && ` cannot sit with ${err.conflictNames.join(', ')}.`}
+    </Typography>
+  );
+}
+
+function isSameAddress(a: SeatAddress, b: SeatAddress): boolean {
+  if (a.type === 'table' && b.type === 'table') return a.tableIndex === b.tableIndex && a.seatIndex === b.seatIndex;
+  if (a.type === 'unassigned' && b.type === 'unassigned') return a.index === b.index;
+  return false;
+}
+
+// Arrangement after dropping `source` onto `target` (move or swap); null if nothing changes
+function applyDrop(
+  students: string[][],
+  unassigned: string[],
+  source: SeatAddress,
+  target: SeatAddress,
+): { students: string[][]; unassigned: string[] } | null {
+  if (isSameAddress(source, target)) return null;
+
+  const getName = (addr: SeatAddress): string =>
+    addr.type === 'table' ? students[addr.tableIndex][addr.seatIndex] ?? '' : unassigned[addr.index] ?? '';
+  const srcName = getName(source);
+  const tgtName = getName(target);
+  const nextStudents = students.map((arr) => [...arr]);
+  const nextUnassigned = [...unassigned];
+
+  // Table → Table
+  if (source.type === 'table' && target.type === 'table') {
+    nextStudents[target.tableIndex][target.seatIndex] = srcName;
+    nextStudents[source.tableIndex][source.seatIndex] = tgtName;
+  }
+  // Table → Unassigned
+  else if (source.type === 'table' && target.type === 'unassigned') {
+    nextStudents[source.tableIndex][source.seatIndex] = tgtName; // '' if appending to empty slot
+    if (target.index < nextUnassigned.length) {
+      nextUnassigned[target.index] = srcName; // swap into existing slot
+    } else {
+      nextUnassigned.push(srcName); // append
+    }
+  }
+  // Unassigned → Table
+  else if (source.type === 'unassigned' && target.type === 'table') {
+    nextStudents[target.tableIndex][target.seatIndex] = srcName;
+    if (tgtName) {
+      nextUnassigned[source.index] = tgtName; // swap
+    } else {
+      nextUnassigned.splice(source.index, 1); // remove from list
+    }
+  }
+  // Unassigned → Unassigned
+  else if (source.type === 'unassigned' && target.type === 'unassigned') {
+    if (target.index < nextUnassigned.length) {
+      // Swap
+      nextUnassigned[source.index] = tgtName;
+      nextUnassigned[target.index] = srcName;
+    } else {
+      // Move to end
+      nextUnassigned.splice(source.index, 1);
+      nextUnassigned.push(srcName);
+    }
+  }
+  return { students: nextStudents, unassigned: nextUnassigned };
 }
 
 const glassButtonSx = {
@@ -75,6 +207,8 @@ export default function SeatingChart() {
   const [draggedConflictNames, setDraggedConflictNames] = useState<Set<string> | null>(null);
   const [draggedPreferredNames, setDraggedPreferredNames] = useState<Set<string> | null>(null);
   const [draggedPreferredTables, setDraggedPreferredTables] = useState<number[] | null>(null);
+  const [dragSource, setDragSource] = useState<SeatAddress | null>(null);
+  const [dragTarget, setDragTarget] = useState<SeatAddress | null>(null);
 
   const roomGridRef = useRef<HTMLDivElement>(null);
   const loadInputRef = useRef<HTMLInputElement>(null);
@@ -94,41 +228,15 @@ export default function SeatingChart() {
   }, [seatingRows]);
 
   // Aggregate all constraint violations for the validation panel
-  const validationErrors = useMemo(() => {
-    const errors: { name: string; tableNumber: number; validTables?: number[]; conflictNames: string[] }[] = [];
-    for (let t = 0; t < NUM_TABLES; t++) {
-      const tblNum = t + 1;
-      for (const name of students[t]) {
-        if (!name) continue;
-        const sr = rowByName.get(name);
-        if (!sr) continue;
+  const validationErrors = useMemo(() => getValidationErrors(students, rowByName), [students, rowByName]);
 
-        const loc = sr.requirements?.location;
-        const hasLocationViolation = loc && loc.length > 0 && loc.length < NUM_TABLES && !loc.includes(tblNum);
-
-        const notPeople = sr.requirements?.notPeople;
-        const conflictNames: string[] = [];
-        if (notPeople && notPeople.length > 0) {
-          const notLower = notPeople.map(p => p.toLowerCase());
-          for (const other of students[t]) {
-            if (other && other !== name && notLower.includes(other.toLowerCase())) {
-              conflictNames.push(other);
-            }
-          }
-        }
-
-        if (hasLocationViolation || conflictNames.length > 0) {
-          errors.push({
-            name,
-            tableNumber: tblNum,
-            validTables: hasLocationViolation ? loc : undefined,
-            conflictNames,
-          });
-        }
-      }
-    }
-    return errors;
-  }, [students, rowByName]);
+  // Violations the hovered drop would newly create
+  const dropPreviewErrors = useMemo(() => {
+    if (!dragSource || !dragTarget) return [];
+    const next = applyDrop(students, unassigned, dragSource, dragTarget);
+    if (!next) return [];
+    return getNewValidationErrors(validationErrors, getValidationErrors(next.students, rowByName));
+  }, [dragSource, dragTarget, students, unassigned, rowByName, validationErrors]);
 
   useEffect(() => {
     const el = roomGridRef.current;
@@ -140,11 +248,6 @@ export default function SeatingChart() {
     return () => observer.disconnect();
   }, []);
 
-  const getName = (addr: SeatAddress): string => {
-    if (addr.type === 'table') return students[addr.tableIndex][addr.seatIndex] ?? '';
-    return unassigned[addr.index] ?? '';
-  };
-
   const handleSeatDragStart = (source: SeatAddress) => {
     let name = '';
     if (source.type === 'table') {
@@ -153,6 +256,8 @@ export default function SeatingChart() {
       name = unassigned[source.index] ?? '';
     }
     if (!name) return;
+    setDragSource(source);
+    setDragTarget(null);
     const sr = rowByName.get(name);
     const loc = sr?.requirements?.location;
     if (loc && loc.length > 0 && loc.length < NUM_TABLES) {
@@ -180,79 +285,22 @@ export default function SeatingChart() {
     setDraggedConflictNames(null);
     setDraggedPreferredNames(null);
     setDraggedPreferredTables(null);
+    setDragSource(null);
+    setDragTarget(null);
   };
 
+  const handleSeatDragEnter = (target: SeatAddress) => setDragTarget(target);
+
+  // dragenter on the next seat can fire before dragleave on this one, so only clear our own address
+  const handleSeatDragLeave = (target: SeatAddress) =>
+    setDragTarget((prev) => (prev && isSameAddress(prev, target) ? null : prev));
+
   const handleDrop = (source: SeatAddress, target: SeatAddress) => {
-    // Same address — no-op
-    if (source.type === target.type) {
-      if (source.type === 'table' && target.type === 'table' &&
-          source.tableIndex === target.tableIndex && source.seatIndex === target.seatIndex) return;
-      if (source.type === 'unassigned' && target.type === 'unassigned' &&
-          source.index === target.index) return;
-    }
-
-    const srcName = getName(source);
-    const tgtName = getName(target);
-
-    // Table → Table
-    if (source.type === 'table' && target.type === 'table') {
-      setStudents((prev) => {
-        const next = prev.map((arr) => [...arr]);
-        next[target.tableIndex][target.seatIndex] = srcName;
-        next[source.tableIndex][source.seatIndex] = tgtName;
-        return next;
-      });
-    }
-    // Table → Unassigned
-    else if (source.type === 'table' && target.type === 'unassigned') {
-      setStudents((prev) => {
-        const next = prev.map((arr) => [...arr]);
-        next[source.tableIndex][source.seatIndex] = tgtName; // '' if appending to empty slot
-        return next;
-      });
-      setUnassigned((prev) => {
-        const next = [...prev];
-        if (target.index < next.length) {
-          next[target.index] = srcName; // swap into existing slot
-        } else {
-          next.push(srcName); // append
-        }
-        return next;
-      });
-    }
-    // Unassigned → Table
-    else if (source.type === 'unassigned' && target.type === 'table') {
-      setStudents((prev) => {
-        const next = prev.map((arr) => [...arr]);
-        next[target.tableIndex][target.seatIndex] = srcName;
-        return next;
-      });
-      setUnassigned((prev) => {
-        const next = [...prev];
-        if (tgtName) {
-          next[source.index] = tgtName; // swap
-        } else {
-          next.splice(source.index, 1); // remove from list
-        }
-        return next;
-      });
-    }
-    // Unassigned → Unassigned
-    else if (source.type === 'unassigned' && target.type === 'unassigned') {
-      setUnassigned((prev) => {
-        const next = [...prev];
-        if (target.index < next.length) {
-          // Swap
-          next[source.index] = tgtName;
-          next[target.index] = srcName;
-        } else {
-          // Move to end
-          next.splice(source.index, 1);
-          next.push(srcName);
-        }
-        return next;
-      });
-    }
+    setDragTarget(null);
+    const next = applyDrop(students, unassigned, source, target);
+    if (!next) return;
+    setStudents(next.students);
+    setUnassigned(next.unassigned);
   };
 
   const handleGroupSizeChange = (tableIndex: number, size: number) => {
@@ -797,6 +845,9 @@ export default function SeatingChart() {
                               onSeatDrop={handleDrop}
                               onSeatDragStart={handleSeatDragStart}
                               onSeatDragEnd={handleSeatDragEnd}
+                              onSeatDragEnter={handleSeatDragEnter}
+                              onSeatDragLeave={handleSeatDragLeave}
+                              dropWarning={dropPreviewErrors.length > 0}
                               dragInvalidTable={draggedValidTables != null && !draggedValidTables.includes(tblNum)}
                               isDraggingWithConstraint={draggedValidTables != null}
                               dragPreferredTable={draggedPreferredTables != null && draggedPreferredTables.includes(tblNum)}
@@ -842,10 +893,10 @@ export default function SeatingChart() {
         </Box>
 
         {/* Unassigned panel */}
-        <UnassignedPanel names={unassigned} onSeatDrop={handleDrop} onSeatDragStart={handleSeatDragStart} onSeatDragEnd={handleSeatDragEnd} draggedConflictNames={draggedConflictNames} draggedPreferredNames={draggedPreferredNames} maxHeight={roomGridHeight} />
+        <UnassignedPanel names={unassigned} onSeatDrop={handleDrop} onSeatDragStart={handleSeatDragStart} onSeatDragEnd={handleSeatDragEnd} onSeatDragEnter={handleSeatDragEnter} onSeatDragLeave={handleSeatDragLeave} dropWarning={dropPreviewErrors.length > 0} draggedConflictNames={draggedConflictNames} draggedPreferredNames={draggedPreferredNames} maxHeight={roomGridHeight} />
         </Box>{/* end content row */}
 
-      {validationErrors.length > 0 && (
+      {(validationErrors.length > 0 || dropPreviewErrors.length > 0) && (
         <Box sx={{
           mt: 2,
           mx: 'auto',
@@ -859,17 +910,27 @@ export default function SeatingChart() {
           boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
           p: 2,
         }}>
-          <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.6)', mb: 1, fontWeight: 700 }}>
-            Validation Issues
-          </Typography>
-          {validationErrors.map((err, i) => (
-            <Typography key={i} variant="body2" sx={{ color: 'rgba(240, 80, 80, 0.95)', fontSize: '13px', lineHeight: 1.8 }}>
-              {err.name} (Table {err.tableNumber}):
-              {err.validTables && ` must sit at table${err.validTables.length > 1 ? 's' : ''} ${err.validTables.join(', ')}.`}
-              {err.validTables && err.conflictNames.length > 0 && ' '}
-              {err.conflictNames.length > 0 && ` cannot sit with ${err.conflictNames.join(', ')}.`}
-            </Typography>
-          ))}
+          {dropPreviewErrors.length > 0 && (
+            <Box sx={{ mb: validationErrors.length > 0 ? 1.5 : 0 }}>
+              <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'rgba(251, 191, 36, 0.95)', mb: 1, fontWeight: 700 }}>
+                <WarningAmberRounded sx={{ fontSize: 18 }} />
+                Dropping here would break
+              </Typography>
+              {dropPreviewErrors.map((err, i) => (
+                <ValidationErrorLine key={i} err={err} color="rgba(251, 191, 36, 0.95)" />
+              ))}
+            </Box>
+          )}
+          {validationErrors.length > 0 && (
+            <>
+              <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.6)', mb: 1, fontWeight: 700 }}>
+                Validation Issues
+              </Typography>
+              {validationErrors.map((err, i) => (
+                <ValidationErrorLine key={i} err={err} color="rgba(240, 80, 80, 0.95)" />
+              ))}
+            </>
+          )}
         </Box>
       )}
 
