@@ -449,17 +449,18 @@ export default function SeatingChart() {
               title={
                 <Box sx={{ fontSize: '13px', lineHeight: 1.6 }}>
                   <Typography variant="body2" sx={{ mb: 1, color: 'rgba(0,0,0,0.75)' }}>
-                    Headers go in <strong>row 2</strong>; students in <strong>rows 3–50</strong>. Download the template for an example.
+                    Headers go in <strong>row 2</strong>; students in <strong style={{ whiteSpace: 'nowrap' }}>rows 3–50</strong>. Download the template for an example.
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: 'rgba(0,0,0,0.8)' }}>Required Columns:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: 'rgba(0,0,0,0.8)' }}>Columns:</Typography>
                   <Box component="ul" sx={{ m: 0, pl: 2, color: 'rgba(0,0,0,0.75)' }}>
-                    <li><strong>Name</strong></li>
-                    <li><strong>Cannot Sit With</strong> — comma-separated list of names matching the Name column</li>
+                    <li><strong>Name</strong> (required) — "Last, First" becomes "First Last"</li>
+                    <li><strong>Cannot Sit With</strong> (optional) — names separated by commas or new lines, written "First Last" to match the Name column</li>
                     <li>
-                      <strong>Location Needs</strong> — one keyword per line:
+                      <strong>Location Needs</strong> (optional) — one per line; every line must be met:
                       <Box component="ul" sx={{ mt: 0.5, pl: 2 }}>
-                        <li>Front, Middle, Back, Windows, Door</li>
-                        <li>Not 1 or 2, Not middle, etc.</li>
+                        <li>Table numbers, e.g. 1, 2, 3</li>
+                        <li>Front, Middle, Back, Windows, Door, Corner</li>
+                        <li>Not front, Not middle, Not 1 or 2, etc.</li>
                       </Box>
                     </li>
                   </Box>
