@@ -82,7 +82,7 @@ Each table/team card contains:
 
 ### Controls Bar
 Above the room layout, a single-row glass panel contains (left to right):
-- **Excel File (Seating Requirements):** label + upload button (accepts `.xlsx`, `.xls`, `.csv`)
+- **Excel File (Seating Requirements):** label + info tooltip + upload button (accepts `.xlsx`, `.xls`, `.csv`) + **Template** button (downloads `public/seating-template.xlsx`)
 - **Priority:** label + dropdown (options: Location, Groupmates, Random)
 - **Randomize** button (disabled until a file is uploaded) — runs constraint-satisfaction algorithm via `calculateSeating()`, shows CircularProgress spinner for 1 second minimum, displays error Dialog if no valid configuration exists
 - **Save** button (disabled until a file is uploaded) — exports seating state to `.json` file
@@ -105,19 +105,26 @@ Above the room layout, a single-row glass panel contains (left to right):
 - **Local Processing:** All data processing, sorting, and seating logic must execute directly within the user's browser.
 
 ## File Handling (Excel Parsing)
+- User-facing format docs live in the README ("Input file format"); keep them, this section, and `public/seating-template.xlsx` in sync when the parser changes
 - Parsing is implemented in `src/utils/parseSeatingFile.ts` using the `xlsx` library
-- Reads file as `ArrayBuffer` via `file.arrayBuffer()`
-- **Headers** are on **row 2** (index 1); **data rows** are rows 3–50 (indices 2–49)
-- **Column matching** (case-insensitive):
+- Reads file as `ArrayBuffer` via `file.arrayBuffer()`; only the **first sheet** is read
+- Row 1 is ignored; **headers** are on **row 2** (index 1); **data rows** are rows 3–50 (indices 2–49), so max 48 students
+- **Column matching** (case-insensitive, first match wins):
   - `name`: header **contains** `'name'`
-  - `person preference` / `cannot sit with`: header **exactly matches**
-  - `location preference` / `location needs`: header **exactly matches**
+  - `person preference` / `cannot sit with`: header **exactly matches** (trimmed)
+  - `location preference` / `location needs`: header **exactly matches** (trimmed)
   - `social`: header **contains** `'social'`
 - Rows with an empty name column are skipped
-- Returns `SeatingRow[]` — type is `{ id: number; requirements: { location: number[]; notPeople: string[] } } & Record<string, unknown>`
+- Name values in `Last, First` form are converted to `First Last`
+- Returns `SeatingRow[]` — type is `{ id: number; requirements: { location: number[]; notPeople: string[] }; preferences: { location: number[] } } & Record<string, unknown>`
   - `id`: row index minus 1
-  - `requirements.location`: array of valid table numbers (1–8), derived from "location needs" column via `parseLocationPreferences()`
-  - `requirements.notPeople`: array of names this person cannot sit with, derived from "cannot sit with" column via `parseNameList()`
+  - Raw string values for each matched column are stored under the original header text as keys (the name key is found later via `k.toLowerCase().includes('name')`)
+  - `requirements.location`: valid table numbers (1–8) from "location needs" via `parseLocationPreferences()` — multiple lines are **intersected**; blank = all tables
+  - `preferences.location`: from "location preference" via `parseLocationPreferences(str, false)` — multiple lines are **unioned**; used for UI highlighting only, not by `calculateSeating()`
+  - `requirements.notPeople`: from "cannot sit with" via `parseNameList()` (split on commas and newlines); a value of `0` means none. Entries must match the converted `First Last` name (case-insensitive)
+  - "person preference" and "social" are stored as raw strings but not used by any logic yet
+- **Location keywords** (`src/utils/parsingUtils.ts`): front 1,2,3 · middle 4,5,6 · back 7,8 · windows 1,6,7 · door 3,4,8 · corner 1,3,7,8 · not front · not middle · not windows · not door · not 1 or 2. Anything else is parsed as comma-separated table numbers
+- **Template**: `public/seating-template.xlsx` (sheet 1 = example students, sheet 2 = instructions), linked from the controls bar "Template" button via `import.meta.env.BASE_URL`
 - **NEVER** write code that attempts to `fetch()` or `POST` the uploaded file to an external URL or server
 
 ## State Management & Persistence

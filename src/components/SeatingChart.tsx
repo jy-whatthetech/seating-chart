@@ -5,6 +5,7 @@ import Button from '@mui/material/Button';
 // import Select from '@mui/material/Select';
 import Typography from '@mui/material/Typography';
 import UploadFile from '@mui/icons-material/UploadFile';
+import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined';
 import SaveOutlined from '@mui/icons-material/SaveOutlined';
 import AutorenewOutlined from '@mui/icons-material/AutorenewOutlined';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -447,6 +448,9 @@ export default function SeatingChart() {
             <Tooltip
               title={
                 <Box sx={{ fontSize: '13px', lineHeight: 1.6 }}>
+                  <Typography variant="body2" sx={{ mb: 1, color: 'rgba(0,0,0,0.75)' }}>
+                    Headers go in <strong>row 2</strong>; students in <strong>rows 3–50</strong>. Download the template for an example.
+                  </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: 'rgba(0,0,0,0.8)' }}>Required Columns:</Typography>
                   <Box component="ul" sx={{ m: 0, pl: 2, color: 'rgba(0,0,0,0.75)' }}>
                     <li><strong>Name</strong></li>
@@ -542,6 +546,24 @@ export default function SeatingChart() {
                   });
               }}
             />
+          </Button>
+          <Button
+            component="a"
+            href={`${import.meta.env.BASE_URL}seating-template.xlsx`}
+            download="seating-template.xlsx"
+            variant="text"
+            size="small"
+            startIcon={<FileDownloadOutlined />}
+            sx={{
+              textTransform: 'none',
+              whiteSpace: 'nowrap',
+              color: 'rgba(0, 0, 0, 0.55)',
+              fontWeight: 500,
+              borderRadius: '12px',
+              '&:hover': { background: 'rgba(255, 255, 255, 0.4)', color: 'rgba(0, 0, 0, 0.8)' },
+            }}
+          >
+            Template
           </Button>
 
           {/* Comment this out for now - feature not implemented yet */}
