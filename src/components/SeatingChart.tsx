@@ -15,6 +15,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import ErrorOutline from '@mui/icons-material/ErrorOutline';
 import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
+import CheckCircleOutline from '@mui/icons-material/CheckCircleOutline';
 import Tooltip from '@mui/material/Tooltip';
 import InfoOutlined from '@mui/icons-material/InfoOutlined';
 import TableCard from './TableCard';
@@ -482,21 +483,9 @@ export default function SeatingChart() {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', py: 4, px: 2 }}>
-      <Typography
-        variant="h4"
-        sx={{
-          textAlign: 'center',
-          fontWeight: 700,
-          mb: 3,
-          color: 'rgba(0, 0, 0, 0.75)',
-        }}
-      >
-        Classroom Seating Chart
-      </Typography>
-
+    <Box sx={{ minHeight: '100vh', pt: 2, pb: 4, px: 2 }}>
       <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 1374 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 1474 }}>
         {/* Top Bar: User inputs for file upload, randomize seating button, randomizer algorithm priority selection, and save/load buttons */}
         <Box sx={{
           ...glassPanel,
@@ -755,7 +744,7 @@ export default function SeatingChart() {
         </Box>
 
         {/* Content row: room layout + unassigned panel */}
-        <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
         {/* Room layout */}
         <Box sx={{ maxWidth: 1150, flex: 1 }}>
           <Box ref={roomGridRef} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -775,9 +764,9 @@ export default function SeatingChart() {
             </Typography>
 
             {/* Middle section: side labels + grid */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               {/* Left: Windows label */}
-              <Box sx={{ width: 40, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+              <Box sx={{ width: 24, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
                 <Typography variant="caption" sx={{ ...sharedLabelSx, transform: 'rotate(180deg)' }}>
                   Windows
                 </Typography>
@@ -868,7 +857,7 @@ export default function SeatingChart() {
               </Box>
 
               {/* Right: Door label */}
-              <Box sx={{ width: 40, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+              <Box sx={{ width: 24, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
                 <Typography variant="caption" sx={sharedLabelSx}>
                   Door (Entrance)
                 </Typography>
@@ -890,49 +879,58 @@ export default function SeatingChart() {
               Front / Whiteboard
             </Typography>
           </Box>
+
+          {/* Unassigned panel — lined up with the table grid (inside the side labels) */}
+          <Box sx={{ mx: '28px', mt: 1 }}>
+            <UnassignedPanel names={unassigned} onSeatDrop={handleDrop} onSeatDragStart={handleSeatDragStart} onSeatDragEnd={handleSeatDragEnd} onSeatDragEnter={handleSeatDragEnter} onSeatDragLeave={handleSeatDragLeave} dropWarning={dropPreviewErrors.length > 0} draggedConflictNames={draggedConflictNames} draggedPreferredNames={draggedPreferredNames} />
+          </Box>
         </Box>
 
-        {/* Unassigned panel */}
-        <UnassignedPanel names={unassigned} onSeatDrop={handleDrop} onSeatDragStart={handleSeatDragStart} onSeatDragEnd={handleSeatDragEnd} onSeatDragEnter={handleSeatDragEnter} onSeatDragLeave={handleSeatDragLeave} dropWarning={dropPreviewErrors.length > 0} draggedConflictNames={draggedConflictNames} draggedPreferredNames={draggedPreferredNames} maxHeight={roomGridHeight} />
-        </Box>{/* end content row */}
-
-      {(validationErrors.length > 0 || dropPreviewErrors.length > 0) && (
-        <Box sx={{
-          mt: 2,
-          mx: 'auto',
-          maxWidth: 900,
-          width: '100%',
-          background: 'rgba(20, 20, 30, 0.75)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '16px',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
-          p: 2,
-        }}>
-          {dropPreviewErrors.length > 0 && (
-            <Box sx={{ mb: validationErrors.length > 0 ? 1.5 : 0 }}>
-              <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'rgba(251, 191, 36, 0.95)', mb: 1, fontWeight: 700 }}>
-                <WarningAmberRounded sx={{ fontSize: 18 }} />
-                Dropping here would break
+        {/* Validation panel — fixed-width column so the tables don't shift when issues appear mid-drag */}
+        <Box sx={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', ...(roomGridHeight !== undefined && { maxHeight: roomGridHeight }) }}>
+          {validationErrors.length > 0 || dropPreviewErrors.length > 0 ? (
+            <Box sx={{
+              background: 'rgba(20, 20, 30, 0.75)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+              p: 2,
+              overflowY: 'auto',
+            }}>
+              {dropPreviewErrors.length > 0 && (
+                <Box sx={{ mb: validationErrors.length > 0 ? 1.5 : 0 }}>
+                  <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'rgba(251, 191, 36, 0.95)', mb: 1, fontWeight: 700 }}>
+                    <WarningAmberRounded sx={{ fontSize: 18 }} />
+                    Dropping here would break
+                  </Typography>
+                  {dropPreviewErrors.map((err, i) => (
+                    <ValidationErrorLine key={i} err={err} color="rgba(251, 191, 36, 0.95)" />
+                  ))}
+                </Box>
+              )}
+              {validationErrors.length > 0 && (
+                <>
+                  <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.6)', mb: 1, fontWeight: 700 }}>
+                    Validation Issues
+                  </Typography>
+                  {validationErrors.map((err, i) => (
+                    <ValidationErrorLine key={i} err={err} color="rgba(240, 80, 80, 0.95)" />
+                  ))}
+                </>
+              )}
+            </Box>
+          ) : (
+            <Box sx={{ ...glassPanel, p: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              {seatingRows.length > 0 && <CheckCircleOutline sx={{ fontSize: 18, color: 'rgba(22, 130, 60, 0.9)' }} />}
+              <Typography variant="body2" sx={{ fontSize: '13px', fontWeight: 600, color: 'rgba(0, 0, 0, 0.55)' }}>
+                {seatingRows.length > 0 ? 'No validation issues' : 'Upload a file to check seating rules'}
               </Typography>
-              {dropPreviewErrors.map((err, i) => (
-                <ValidationErrorLine key={i} err={err} color="rgba(251, 191, 36, 0.95)" />
-              ))}
             </Box>
           )}
-          {validationErrors.length > 0 && (
-            <>
-              <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.6)', mb: 1, fontWeight: 700 }}>
-                Validation Issues
-              </Typography>
-              {validationErrors.map((err, i) => (
-                <ValidationErrorLine key={i} err={err} color="rgba(240, 80, 80, 0.95)" />
-              ))}
-            </>
-          )}
         </Box>
-      )}
+        </Box>{/* end content row */}
 
       </Box>{/* end column */}
       </Box>{/* end centering wrapper */}

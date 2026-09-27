@@ -83,6 +83,9 @@ Each table/team card contains:
 - **4→5**: grid names shift from slots `[0,1,2,3]` to `[1,2,3,4]`; slot 0 (top seat) starts empty
 - **5→4**: top seat (slot 0) name moves to unassigned if non-empty; grid names shift from `[1,2,3,4]` to `[0,1,2,3]`
 
+### Page Layout
+No page title (it's redundant with the browser tab). Top to bottom: controls bar, then a content row with the room layout on the left and a fixed 300px **validation panel** column on the right (capped at the room grid's height, scrolls when long). The column is always rendered, showing "No validation issues" (or an upload prompt) when clean, so the tables never shift when issues appear mid-drag. The **Unassigned** panel sits below the room layout, lined up with the table grid, as a wrapping grid of slots.
+
 ### Controls Bar
 Above the room layout, a single-row glass panel contains (left to right):
 - **Excel File (Seating Requirements):** label + info tooltip + upload button (accepts `.xlsx`, `.xls`, `.csv`) + **Template** button (downloads `public/seating-template.xlsx`)
@@ -149,9 +152,9 @@ GitHub Actions workflow (`.github/workflows/deploy.yml`) automatically deploys t
 
 - `src/App.tsx` — ThemeProvider + CssBaseline wrapper
 - `src/main.tsx` — Application entry point
-- `src/components/SeatingChart.tsx` — Main container: controls bar (upload, priority, randomize, save/load), 8-table room grid with labels, all state management (students, groupSizes, unassigned, seatingRows, isRandomizing, errorDialogOpen), drag-and-drop handler, save/load/randomize handlers, error dialog
+- `src/components/SeatingChart.tsx` — Main container: controls bar (upload, priority, randomize, save/load), 8-table room grid with labels, validation panel (current issues + drop preview), all state management (students, groupSizes, unassigned, seatingRows, isRandomizing, errorDialogOpen), drag-and-drop handler, save/load/randomize handlers, error dialog
 - `src/components/TableCard.tsx` — Glass-effect card: team header, group size stepper, 2×2 student grid with drag-and-drop seats
-- `src/components/UnassignedPanel.tsx` — Scrollable side panel for unassigned student names with drag-and-drop slots
+- `src/components/UnassignedPanel.tsx` — Panel below the room layout with a wrapping grid of drag-and-drop slots for unassigned student names
 - `src/utils/parseSeatingFile.ts` — Excel/CSV parser: column matching, row extraction, returns `SeatingRow[]` with requirements
 - `src/utils/seatCalculation.ts` — Randomized backtracking constraint-satisfaction algorithm for seat assignment; respects location and notPeople constraints; retry loop with iteration limit to prevent browser hangs
 - `src/utils/parsingUtils.ts` — `parseLocationPreferences()` (maps location keywords/numbers to valid table arrays) and `parseNameList()` (parses comma/newline-separated name lists)

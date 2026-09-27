@@ -28,7 +28,6 @@ interface UnassignedPanelProps {
   dropWarning?: boolean;
   draggedConflictNames?: Set<string> | null;
   draggedPreferredNames?: Set<string> | null;
-  maxHeight?: number;
 }
 
 interface SlotProps {
@@ -144,17 +143,12 @@ function Slot({ name, index, onSeatDrop, onSeatDragStart, onSeatDragEnd, onSeatD
   );
 }
 
-export default function UnassignedPanel({ names, onSeatDrop, onSeatDragStart, onSeatDragEnd, onSeatDragEnter, onSeatDragLeave, dropWarning, draggedConflictNames, draggedPreferredNames, maxHeight }: UnassignedPanelProps) {
+export default function UnassignedPanel({ names, onSeatDrop, onSeatDragStart, onSeatDragEnd, onSeatDragEnter, onSeatDragLeave, dropWarning, draggedConflictNames, draggedPreferredNames }: UnassignedPanelProps) {
   return (
     <Box
       sx={{
         ...glassPanel as Record<string, unknown>,
-        width: 200,
-        flexShrink: 0,
         p: 2,
-        display: 'flex',
-        flexDirection: 'column',
-        ...(maxHeight !== undefined && { maxHeight }),
       }}
     >
       <Typography
@@ -163,15 +157,13 @@ export default function UnassignedPanel({ names, onSeatDrop, onSeatDragStart, on
           fontWeight: 700,
           color: 'rgba(0, 0, 0, 0.6)',
           letterSpacing: 1,
-          textAlign: 'center',
-          mb: 0.5,
-          flexShrink: 0,
+          mb: 1,
         }}
       >
         Unassigned Names
       </Typography>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, overflowY: 'auto' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 1 }}>
         {names.map((name, i) => (
           <Slot key={i} name={name} index={i} onSeatDrop={onSeatDrop} onSeatDragStart={onSeatDragStart} onSeatDragEnd={onSeatDragEnd} onSeatDragEnter={onSeatDragEnter} onSeatDragLeave={onSeatDragLeave} dropWarning={dropWarning} draggedConflictNames={draggedConflictNames} draggedPreferredNames={draggedPreferredNames} />
         ))}
