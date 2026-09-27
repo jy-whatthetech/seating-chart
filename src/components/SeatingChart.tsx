@@ -28,6 +28,17 @@ export type SeatAddress =
 
 const NUM_TABLES = 8;
 
+// Preferred tables limited to those allowed by location needs, sorted.
+// Returns null when there is no meaningful preference (blank, all tables, or none allowed).
+function getLocationPreference(sr: SeatingRow | undefined): number[] | null {
+  const pref = sr?.preferences?.location;
+  if (!pref || pref.length === 0 || pref.length >= NUM_TABLES) return null;
+  const needs = sr?.requirements?.location;
+  const allowed = needs && needs.length > 0 ? pref.filter(t => needs.includes(t)) : pref;
+  if (allowed.length === 0 || allowed.length >= NUM_TABLES) return null;
+  return [...allowed].sort((a, b) => a - b);
+}
+
 const glassButtonSx = {
   textTransform: 'none',
   background: 'rgba(60, 130, 246, 1.0)',
@@ -62,6 +73,8 @@ export default function SeatingChart() {
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [draggedValidTables, setDraggedValidTables] = useState<number[] | null>(null);
   const [draggedConflictNames, setDraggedConflictNames] = useState<Set<string> | null>(null);
+  const [draggedPreferredNames, setDraggedPreferredNames] = useState<Set<string> | null>(null);
+  const [draggedPreferredTables, setDraggedPreferredTables] = useState<number[] | null>(null);
 
   const roomGridRef = useRef<HTMLDivElement>(null);
   const loadInputRef = useRef<HTMLInputElement>(null);
@@ -147,17 +160,26 @@ export default function SeatingChart() {
     } else {
       setDraggedValidTables(null);
     }
+    setDraggedPreferredTables(getLocationPreference(sr));
     const notPeople = sr?.requirements?.notPeople;
     if (notPeople && notPeople.length > 0) {
       setDraggedConflictNames(new Set(notPeople.map(n => n.toLowerCase())));
     } else {
       setDraggedConflictNames(null);
     }
+    const preferredPeople = sr?.preferences?.people;
+    if (preferredPeople && preferredPeople.length > 0) {
+      setDraggedPreferredNames(new Set(preferredPeople.map(n => n.toLowerCase())));
+    } else {
+      setDraggedPreferredNames(null);
+    }
   };
 
   const handleSeatDragEnd = () => {
     setDraggedValidTables(null);
     setDraggedConflictNames(null);
+    setDraggedPreferredNames(null);
+    setDraggedPreferredTables(null);
   };
 
   const handleDrop = (source: SeatAddress, target: SeatAddress) => {
@@ -755,12 +777,15 @@ export default function SeatingChart() {
                               oi !== si && other && notLower.includes(other.toLowerCase())
                             );
                           });
-                          const prefMatches = tblStudents.map(n => {
-                            if (!n) return false;
-                            const sr = rowByName.get(n);
-                            const pref = sr?.preferences?.location;
-                            if (!pref || pref.length === 0) return false;
-                            return pref.includes(tblNum);
+                          const locationPrefs = tblStudents.map(n => n ? getLocationPreference(rowByName.get(n)) : null);
+                          const prefMatches = locationPrefs.map(pref => pref != null && pref.includes(tblNum));
+                          // Only seats within the group size are visible (e.g. slot 3 is hidden at size 3)
+                          const seatedLower = new Set(tblStudents.filter((n, si) => n && si < groupSizes[tableIdx]).map(n => n.toLowerCase()));
+                          const personPrefs = tblStudents.map(n => {
+                            if (!n) return null;
+                            const people = rowByName.get(n)?.preferences?.people;
+                            if (!people || people.length === 0) return null;
+                            return { met: people.filter(p => seatedLower.has(p.toLowerCase())).length, total: people.length };
                           });
                           return (
                             <TableCard
@@ -774,10 +799,14 @@ export default function SeatingChart() {
                               onSeatDragEnd={handleSeatDragEnd}
                               dragInvalidTable={draggedValidTables != null && !draggedValidTables.includes(tblNum)}
                               isDraggingWithConstraint={draggedValidTables != null}
+                              dragPreferredTable={draggedPreferredTables != null && draggedPreferredTables.includes(tblNum)}
                               draggedConflictNames={draggedConflictNames}
+                              draggedPreferredNames={draggedPreferredNames}
                               seatViolations={violations}
                               seatConflicts={conflicts}
                               seatPreferenceMatch={prefMatches}
+                              seatLocationPrefs={locationPrefs}
+                              seatPersonPrefs={personPrefs}
                             />
                           );
                         })()}
@@ -813,7 +842,7 @@ export default function SeatingChart() {
         </Box>
 
         {/* Unassigned panel */}
-        <UnassignedPanel names={unassigned} onSeatDrop={handleDrop} onSeatDragStart={handleSeatDragStart} onSeatDragEnd={handleSeatDragEnd} draggedConflictNames={draggedConflictNames} maxHeight={roomGridHeight} />
+        <UnassignedPanel names={unassigned} onSeatDrop={handleDrop} onSeatDragStart={handleSeatDragStart} onSeatDragEnd={handleSeatDragEnd} draggedConflictNames={draggedConflictNames} draggedPreferredNames={draggedPreferredNames} maxHeight={roomGridHeight} />
         </Box>{/* end content row */}
 
       {validationErrors.length > 0 && (

@@ -24,6 +24,7 @@ interface UnassignedPanelProps {
   onSeatDragStart?: (source: SeatAddress) => void;
   onSeatDragEnd?: () => void;
   draggedConflictNames?: Set<string> | null;
+  draggedPreferredNames?: Set<string> | null;
   maxHeight?: number;
 }
 
@@ -34,10 +35,11 @@ interface SlotProps {
   onSeatDragStart?: (source: SeatAddress) => void;
   onSeatDragEnd?: () => void;
   draggedConflictNames?: Set<string> | null;
+  draggedPreferredNames?: Set<string> | null;
   isAppendZone?: boolean;
 }
 
-function Slot({ name, index, onSeatDrop, onSeatDragStart, onSeatDragEnd, draggedConflictNames, isAppendZone }: SlotProps) {
+function Slot({ name, index, onSeatDrop, onSeatDragStart, onSeatDragEnd, draggedConflictNames, draggedPreferredNames, isAppendZone }: SlotProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -96,6 +98,10 @@ function Slot({ name, index, onSeatDrop, onSeatDragStart, onSeatDragEnd, dragged
         ...(isAppendZone && !isDragOver && {
           border: '1px dashed rgba(0, 0, 0, 0.1)',
         }),
+        ...(draggedPreferredNames != null && hasName && draggedPreferredNames.has(name.toLowerCase()) && !isDragging && {
+          background: 'rgba(22, 163, 74, 0.4)',
+          border: '1px solid rgba(22, 163, 74, 0.6)',
+        }),
         ...(draggedConflictNames != null && hasName && draggedConflictNames.has(name.toLowerCase()) && !isDragging && {
           background: 'rgba(180, 120, 220, 0.25)',
         }),
@@ -130,7 +136,7 @@ function Slot({ name, index, onSeatDrop, onSeatDragStart, onSeatDragEnd, dragged
   );
 }
 
-export default function UnassignedPanel({ names, onSeatDrop, onSeatDragStart, onSeatDragEnd, draggedConflictNames, maxHeight }: UnassignedPanelProps) {
+export default function UnassignedPanel({ names, onSeatDrop, onSeatDragStart, onSeatDragEnd, draggedConflictNames, draggedPreferredNames, maxHeight }: UnassignedPanelProps) {
   return (
     <Box
       sx={{
@@ -159,7 +165,7 @@ export default function UnassignedPanel({ names, onSeatDrop, onSeatDragStart, on
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, overflowY: 'auto' }}>
         {names.map((name, i) => (
-          <Slot key={i} name={name} index={i} onSeatDrop={onSeatDrop} onSeatDragStart={onSeatDragStart} onSeatDragEnd={onSeatDragEnd} draggedConflictNames={draggedConflictNames} />
+          <Slot key={i} name={name} index={i} onSeatDrop={onSeatDrop} onSeatDragStart={onSeatDragStart} onSeatDragEnd={onSeatDragEnd} draggedConflictNames={draggedConflictNames} draggedPreferredNames={draggedPreferredNames} />
         ))}
 
         {/* Always show an append drop zone */}
@@ -170,6 +176,7 @@ export default function UnassignedPanel({ names, onSeatDrop, onSeatDragStart, on
           onSeatDragStart={onSeatDragStart}
           onSeatDragEnd={onSeatDragEnd}
           draggedConflictNames={draggedConflictNames}
+          draggedPreferredNames={draggedPreferredNames}
           isAppendZone
         />
       </Box>

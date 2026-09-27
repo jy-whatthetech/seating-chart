@@ -74,6 +74,8 @@ Each table/team card contains:
 - **Visual indicators**:
   - Drag source: reduced opacity, light green background, dashed green border
   - Drop target hover: light blue background, dark blue border
+  - While dragging, names in the dragged student's `notPeople` get a purple background and names in their `preferences.people` a darker green one with a green border (purple wins if both); applies to seats and the Unassigned panel
+  - While dragging, tables outside the student's `requirements.location` get a red card tint, and tables in their `preferences.location` a light green one (red wins if both)
   - Child text has `pointerEvents: 'none'` to prevent dragLeave flicker
 
 ### Group Size Stepper Seat Shifting
@@ -116,14 +118,16 @@ Above the room layout, a single-row glass panel contains (left to right):
   - `social`: header **contains** `'social'`
 - Rows with an empty name column are skipped
 - Name values in `Last, First` form are converted to `First Last`
-- Returns `SeatingRow[]` — type is `{ id: number; requirements: { location: number[]; notPeople: string[] }; preferences: { location: number[] } } & Record<string, unknown>`
+- Returns `SeatingRow[]` — type is `{ id: number; requirements: { location: number[]; notPeople: string[] }; preferences: { location: number[]; people: string[] } } & Record<string, unknown>`
   - `id`: row index minus 1
   - Raw string values for each matched column are stored under the original header text as keys (the name key is found later via `k.toLowerCase().includes('name')`)
   - `requirements.location`: valid table numbers (1–8) from "location needs" via `parseLocationPreferences()` — multiple lines are **intersected**; blank = all tables
-  - `preferences.location`: from "location preference" via `parseLocationPreferences(str, false)` — multiple lines are **unioned**; used for UI highlighting only, not by `calculateSeating()`
+  - `preferences.location`: from "location preference" via `parseLocationPreferences(str, false)` — multiple lines are **unioned**; the UI uses `getLocationPreference()` in `SeatingChart.tsx`, which drops tables outside `requirements.location`; shown under the seat name as `L: …` (green if seated at a preferred table, red if not; hidden when blank/all tables) and preferred tables get a light green card tint on drag, not used by `calculateSeating()`
   - `requirements.notPeople`: from "cannot sit with" via `parseNameList()` (split on commas and newlines); a value of `0` means none. Entries must match the converted `First Last` name (case-insensitive)
-  - "person preference" and "social" are stored as raw strings but not used by any logic yet
-- **Location keywords** (`src/utils/parsingUtils.ts`): front 1,2,3 · middle 4,5,6 · back 7,8 · windows 1,6,7 · door 3,4,8 · corner 1,3,7,8 · not front · not middle · not windows · not door · not 1 or 2. Anything else is parsed as comma-separated table numbers
+  - `preferences.people`: from "person preference" via `parseNameList()`, same rules as `notPeople`; shown under the seat name as `P: met/total` (people seated at the same table within the group size / list length; green if met > 0, red if 0) and highlighted green on drag, not used by `calculateSeating()`
+  - "social" is stored as a raw string but not used by any logic yet
+- **Location keywords** (`src/utils/parsingUtils.ts`): front 1,2,3 · middle 4,5,6 · back 7,8 · windows 1,6,7 · door 3,4,8 · corner 1,3,7,8 · not front · not middle · not windows · not door · not 1 or 2
+- **Location line parsing**: each line is split on commas; each item is a keyword or a table number, and items on the same line are **unioned** (`front, middle` = 1–6). Lines are then intersected (needs) or unioned (preference)
 - **Template**: `public/seating-template.xlsx` (sheet 1 = example students, sheet 2 = instructions), linked from the controls bar "Template" button via `import.meta.env.BASE_URL`
 - **NEVER** write code that attempts to `fetch()` or `POST` the uploaded file to an external URL or server
 

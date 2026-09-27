@@ -26,13 +26,13 @@ Columns can be in any order, and header matching ignores capitalization.
 | Name | first header that *contains* `name` | Student name. `Last, First` is converted to `First Last`. |
 | Cannot Sit With | exact match | **Hard rule.** Names separated by commas or line breaks. `0` or blank means none. |
 | Location Needs | exact match | **Hard rule.** The tables the student is allowed to sit at (see below). |
-| Location Preference | exact match | Soft preference. It's used for highlighting and isn't enforced by Randomize. |
-| Person Preference | exact match | Stored, but not used by the seating logic yet. |
+| Location Preference | exact match | Soft preference. It's shown under the student's name as `L: 1, 2, 3`, in green when they're at one of those tables and red when they aren't. The preferred tables are also tinted light green while you drag the student. Randomize doesn't enforce it. |
+| Person Preference | exact match | Soft preference. Names the student would like to sit with, in the same format as Cannot Sit With. It's shown under the student's name as `P: 1/3` (preferred people at the same table / people listed), in green when at least one is there and red when none are. Their names are also highlighted darker green while you drag the student, but Randomize doesn't enforce them. |
 | Social… | header *contains* `social` | Stored, but not used by the seating logic yet. |
 
 ### Location values
 
-Each line in a cell is either a list of table numbers (`1, 2, 3`) or one of these keywords:
+Each line in a cell is a comma-separated list of table numbers and/or keywords, and any item on the line counts: `1, 2, 3`, `front, middle` (tables 1–6), or `back, 3`. The keywords are:
 
 | Keyword | Tables | | Keyword | Tables |
 |---|---|---|---|---|
@@ -43,7 +43,7 @@ Each line in a cell is either a list of table numbers (`1, 2, 3`) or one of thes
 | `door` | 3, 4, 8 | | `not 1 or 2` | 3, 4, 5, 6, 7, 8 |
 | `corner` | 1, 3, 7, 8 | | *(blank)* | any table |
 
-You can put several lines in one cell (Alt+Enter in Excel). In **Location Needs**, every line must be satisfied: `not front` + `windows` allows only tables 6 and 7. In **Location Preference**, any line counts.
+You can put several lines in one cell (Alt+Enter in Excel). In **Location Needs**, every line must be satisfied: `not front` + `windows` allows only tables 6 and 7, and `front` + `middle` on separate lines allows no table at all (write `front, middle` on one line to allow either). In **Location Preference**, everything listed counts, whether on the same line or separate lines, and tables that Location Needs rules out are dropped: `front` needs with a `front` + `middle` preference shows as tables 1, 2, 3.
 
 Table numbers follow the room layout, with the front/whiteboard at the bottom:
 
@@ -57,8 +57,8 @@ Windows  [T6] [T5] [T4]   Door
 
 ### Pitfalls
 
-- **Write the names in Cannot Sit With as `First Last`.** Commas separate names in that column, so `Smith, John` is read as two people, "Smith" and "John", and the rule silently does nothing.
-- **Names in Cannot Sit With must match the Name column exactly** after the `Last, First` conversion (capitalization doesn't matter). A misspelling or nickname won't match, and no warning appears.
+- **Write the names in Cannot Sit With and Person Preference as `First Last`.** Commas separate names in those columns, so `Smith, John` is read as two people, "Smith" and "John", and the rule silently does nothing.
+- **Names in Cannot Sit With and Person Preference must match the Name column exactly** after the `Last, First` conversion (capitalization doesn't matter). A misspelling or nickname won't match, and no warning appears.
 - **Avoid other headers that contain "name"** to the left of the real name column (for example "Nickname" or "Teacher name"). The first one found is used as the name column.
 
 ## Development

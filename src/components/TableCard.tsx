@@ -16,6 +16,7 @@ const baseSeatCellSx = {
   py: 1,
   px: 0.5,
   display: 'flex',
+  flexDirection: 'column' as const,
   alignItems: 'center',
   justifyContent: 'center',
   position: 'relative' as const,
@@ -38,10 +39,14 @@ interface TableCardProps {
   onSeatDragEnd?: () => void;
   dragInvalidTable?: boolean;
   isDraggingWithConstraint?: boolean;
+  dragPreferredTable?: boolean;
   draggedConflictNames?: Set<string> | null;
+  draggedPreferredNames?: Set<string> | null;
   seatViolations?: boolean[];
   seatConflicts?: boolean[];
   seatPreferenceMatch?: boolean[];
+  seatLocationPrefs?: (number[] | null)[];
+  seatPersonPrefs?: ({ met: number; total: number } | null)[];
 }
 
 interface SeatCellProps {
@@ -53,14 +58,17 @@ interface SeatCellProps {
   violated?: boolean;
   conflicted?: boolean;
   preferenceMatch?: boolean;
+  locationPref?: number[] | null;
+  personPref?: { met: number; total: number } | null;
   onSeatDragStart?: (source: SeatAddress) => void;
   onSeatDragEnd?: () => void;
   dragInvalidTable?: boolean;
   isConflictedDrag?: boolean;
+  isPreferredDrag?: boolean;
   sx?: Record<string, unknown>;
 }
 
-function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, violated, conflicted, preferenceMatch: _preferenceMatch, onSeatDragStart, onSeatDragEnd, dragInvalidTable, isConflictedDrag, sx }: SeatCellProps) {
+function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, violated, conflicted, preferenceMatch, locationPref, personPref, onSeatDragStart, onSeatDragEnd, dragInvalidTable, isConflictedDrag, isPreferredDrag, sx }: SeatCellProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -126,6 +134,10 @@ function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, violated,
           border: '1px dashed rgba(60, 160, 60, 0.5)',
           cursor: 'grabbing',
         }),
+        ...(isPreferredDrag && !isDragging && {
+          background: 'rgba(22, 163, 74, 0.4)',
+          border: '1px solid rgba(22, 163, 74, 0.6)',
+        }),
         ...(isConflictedDrag && !isDragging && {
           background: 'rgba(180, 120, 220, 0.25)',
         }),
@@ -153,6 +165,24 @@ function SeatCell({ name, tableIndex, seatIndex, onSeatDrop, inactive, violated,
       >
         {name}
       </Typography>
+      {locationPref && hasName && !inactive && (
+        <Typography
+          variant="caption"
+          noWrap
+          sx={{ fontSize: '10px', lineHeight: 1.2, fontWeight: 600, color: preferenceMatch ? 'rgba(22, 130, 60, 0.95)' : 'rgba(210, 50, 50, 0.9)', textAlign: 'center', userSelect: 'none', pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}
+        >
+          L: {locationPref.join(', ')}
+        </Typography>
+      )}
+      {personPref && hasName && !inactive && (
+        <Typography
+          variant="caption"
+          noWrap
+          sx={{ fontSize: '10px', lineHeight: 1.2, fontWeight: 600, color: personPref.met > 0 ? 'rgba(22, 130, 60, 0.95)' : 'rgba(210, 50, 50, 0.9)', textAlign: 'center', userSelect: 'none', pointerEvents: 'none' }}
+        >
+          P: {personPref.met}/{personPref.total}
+        </Typography>
+      )}
     </Box>
   );
 }
@@ -168,10 +198,14 @@ export default function TableCard({
   onSeatDragEnd,
   dragInvalidTable,
   isDraggingWithConstraint,
+  dragPreferredTable,
   draggedConflictNames,
+  draggedPreferredNames,
   seatViolations,
   seatConflicts,
   seatPreferenceMatch,
+  seatLocationPrefs,
+  seatPersonPrefs,
 }: TableCardProps) {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
@@ -197,7 +231,7 @@ export default function TableCard({
   }));
 
   return (
-    <Box sx={{ ...glassCard as Record<string, unknown>, p: 1.5, display: 'flex', flexDirection: 'column', transition: 'background 0.15s ease', ...(isDraggingWithConstraint && dragInvalidTable && { background: 'rgba(220, 80, 80, 0.12)' }) }}>
+    <Box sx={{ ...glassCard as Record<string, unknown>, p: 1.5, display: 'flex', flexDirection: 'column', transition: 'background 0.15s ease', ...(dragPreferredTable && { background: 'rgba(134, 239, 172, 0.25)' }), ...(isDraggingWithConstraint && dragInvalidTable && { background: 'rgba(220, 80, 80, 0.12)' }) }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
         <Typography
           variant="subtitle1"
@@ -263,10 +297,13 @@ export default function TableCard({
               violated={seatViolations?.[extraSeat.seatIndex] ?? false}
               conflicted={seatConflicts?.[extraSeat.seatIndex] ?? false}
               preferenceMatch={seatPreferenceMatch?.[extraSeat.seatIndex] ?? false}
+              locationPref={seatLocationPrefs?.[extraSeat.seatIndex]}
+              personPref={seatPersonPrefs?.[extraSeat.seatIndex]}
               onSeatDragStart={onSeatDragStart}
               onSeatDragEnd={onSeatDragEnd}
               dragInvalidTable={dragInvalidTable}
               isConflictedDrag={draggedConflictNames != null && extraSeat.name !== '' && draggedConflictNames.has(extraSeat.name.toLowerCase())}
+              isPreferredDrag={draggedPreferredNames != null && extraSeat.name !== '' && draggedPreferredNames.has(extraSeat.name.toLowerCase())}
               sx={{ width: '50%' }}
             />
           </Box>
@@ -285,10 +322,13 @@ export default function TableCard({
               violated={seatViolations?.[seat.seatIndex] ?? false}
               conflicted={seatConflicts?.[seat.seatIndex] ?? false}
               preferenceMatch={seatPreferenceMatch?.[seat.seatIndex] ?? false}
+              locationPref={seatLocationPrefs?.[seat.seatIndex]}
+              personPref={seatPersonPrefs?.[seat.seatIndex]}
               onSeatDragStart={onSeatDragStart}
               onSeatDragEnd={onSeatDragEnd}
               dragInvalidTable={dragInvalidTable}
               isConflictedDrag={draggedConflictNames != null && seat.name !== '' && draggedConflictNames.has(seat.name.toLowerCase())}
+              isPreferredDrag={draggedPreferredNames != null && seat.name !== '' && draggedPreferredNames.has(seat.name.toLowerCase())}
             />
           ))}
         </Box>

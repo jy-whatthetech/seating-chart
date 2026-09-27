@@ -26,10 +26,17 @@ export function parseLocationPreferences(prefString: string, isIntersection: boo
     }
 
     for (const line of lines) {
-        const mapped = locationKeywordsMap[line.toLowerCase()];
-        const candidates: number[] = mapped
-            ? mapped
-            : line.split(',').map(s => parseInt(s.trim(), 10)).filter(n => n >= 1 && n <= 8);
+        // Within a line, comma-separated keywords and table numbers are unioned
+        const candidates: number[] = [];
+        for (const token of line.split(',').map(s => s.trim()).filter(s => s.length > 0)) {
+            const mapped = locationKeywordsMap[token];
+            if (mapped) {
+                candidates.push(...mapped);
+            } else {
+                const n = parseInt(token, 10);
+                if (n >= 1 && n <= 8) candidates.push(n);
+            }
+        }
 
         if (isIntersection) {
             for (const n of seatSet) {
